@@ -56,7 +56,6 @@ def ball_tracking_traditional(lower_threshold, upper_threshold, src_path, csv_ou
         if frame is None:
             break
         # Blur the frame, and convert it to the HSV color space 
-        frame_id += 1
         # frame = imutils.resize(frame, width=600)
         frame_width = frame.shape[1]
         frame_height = frame.shape[0]
@@ -164,6 +163,7 @@ def ball_tracking_traditional(lower_threshold, upper_threshold, src_path, csv_ou
 
         frame_arr.append(frame) 
         cv2.imshow("Frame", frame)
+        frame_id += 1
 
         key = cv2.waitKey(1) & 0xFF
         # if the 'q' key is pressed, stop the loop
