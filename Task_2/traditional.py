@@ -7,7 +7,8 @@ import imutils
 import time
 import matplotlib.pyplot as plt
 import copy
-
+import csv
+import os
 '''
 ap = argparse.ArgumentParser()
 ap.add_argument("-v", "-D:\\Adithya\\GRE\\Applications\\University of Pennsylvania\\Coding Challenge\\ball_tracking_video.mp4",
@@ -30,7 +31,6 @@ else:
 time.sleep(2.0)
 '''
 
-import csv
 
 def write_bounding_boxes_to_csv(file_path, bounding_boxes):
     with open(file_path, mode='w', newline='') as file:
@@ -38,7 +38,7 @@ def write_bounding_boxes_to_csv(file_path, bounding_boxes):
         writer.writerow(['Frame Number', 'X Center', 'Y Center', 'Width', 'Height'])
         writer.writerows(bounding_boxes)
 
-# file_path = "D:\Adithya\GRE\Applications\University of Pennsylvania\Coding Challenge\Box_coordinates.csv"
+file_path = r"D:\\Adithya\\GRE\\Applications\\University of Pennsylvania\\Coding Challenge\\Box_coordinates.csv"
 
 def draw_rectangle(img, top_left, bot_right, colour_arr, thickness):
     cv2.rectangle(img, top_left, bot_right, colour_arr, thickness)
@@ -66,29 +66,19 @@ def find_max_votes(hsv_image, hough_circles, lower_threshold, upper_threshold):
 
     return max_votes, roi, roi_center, roi_radius
     
-
-
-
-# whiteLower = (0, 0, 168)
-# whiteUpper = (172, 111, 255)
 pts = deque(maxlen=64)
-
-
-# whiteLower = (0, 0, 80)
-# whiteUpper = (10, 30, 100)
 
 # Working values
 whiteLower = np.array([15, 0, 200])
 whiteUpper = np.array([32, 40, 255])
 
-# whiteLower = (20, 150, 55)
-# whiteUpper = (35, 160, 100)
-
-
 vs = cv2.VideoCapture("D:\\Adithya\\GRE\\Applications\\University of Pennsylvania\\Coding Challenge\\ball_tracking_video.mp4")
 # keep looping
+fps = vs.get(cv2.CAP_PROP_FPS)
 bounding_boxes = []
-count = 0
+frame_id = 0
+frame_arr = []
+
 while True:
 	# grab the current frame
     frame = vs.read()
@@ -100,9 +90,10 @@ while True:
         break
     # resize the frame, blur it, and convert it to the HSV
     # color space
-    count += 1
-        
+    frame_id += 1
     # frame = imutils.resize(frame, width=600)
+    frame_width = frame.shape[1]
+    frame_height = frame.shape[0]
     blurred = cv2.GaussianBlur(frame, (13, 13), 0)
     gray = cv2.cvtColor(blurred, cv2.COLOR_BGR2GRAY)
 
@@ -141,14 +132,13 @@ while True:
         ((x, y), radius) = cv2.minEnclosingCircle(c)
         M = cv2.moments(c)
         center = (int(M["m10"] / M["m00"]), int(M["m01"] / M["m00"]))
-        print("radius", radius)
+        # print("radius", radius)
         # only proceed if the radius meets a minimum size
         # if radius > 2:
         
 
         # draw the circle and centroid on the frame,
         # then update the list of tracked points
-        # cv2.circle(frame, (int(x), int(y)), int(radius),
         
         x, y, w, h = cv2.boundingRect(c)
         x_outer, y_outer = x+w, y+h
@@ -181,16 +171,10 @@ while True:
                     # cv2.circle(frame, center, 5, (0, 0, 255), -1)
                 
                 else:
-                    # circle center
-                    # cv2.circle(frame, roi_center, 1, (0, 100, 100), 3)
-                    # circle outline
-                    # cv2.circle(frame, roi_center, roi_radius, (255, 0, 255), 3)
+                   
                     x1, y1 = np.array(roi_center) - roi_radius  
                     x2, y2 = np.array(roi_center) + roi_radius
                     bbox_center = roi_center
-                    
-                    # cv2.circle(frame, roi_center, 5, (0, 0, 255), -1)
-                    # roi_center_old = roi_center
             
             else:
                 ################################
@@ -200,9 +184,7 @@ while True:
                 x1, y1 = np.uint16(np.around(np.array(center) - 30))
                 x2, y2 = np.uint16(np.around(np.array(center) + 30))
                 bbox_center = center
-
-                # cv2.circle(frame, center, 5, (0, 0, 255), -1)
-                
+            
         
         else:
             x1, y1 = np.uint16(np.around(np.array(center) - 30))
@@ -215,32 +197,47 @@ while True:
     
     else:
         if circles is not None:
-            bbox_found = True
             circles = np.uint16(np.around(circles))
             max_votes, roi, bbox_center, bbox_radius = find_max_votes(hsv, circles, whiteLower, whiteUpper)
+            if max_votes > 0:
+                bbox_found = True
+
 
         else:
             pass
     
+
+
     if bbox_found:
         # circle center
-        # cv2.circle(frame, bbox_center, 1, (0, 100, 100), 3)
-        cv2.circle(frame, bbox_center, 5, (0, 0, 255), -1)
-
-        # circle outline
-        # cv2.circle(frame, bbox_center, bbox_radius, (255, 0, 255), 3)
+        cv2.circle(frame, bbox_center, 2, (0, 0, 255), 3)
         cv2.rectangle(frame, (x1, y1), (x2, y2), (180, 140, 150), 3) 
-    
-    cv2.putText(frame, str(count), (10, 700), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)
+        bbox_width = x2 - x1
+        bbox_height = y2 - y1
+        bounding_boxes.append([frame_id, bbox_center[0], bbox_center[1], bbox_width, bbox_height])
+
+
+    # cv2.putText(frame, str(frame_id), (10, 700), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)
+    frame_arr.append(frame) 
     cv2.imshow("Frame", frame)
 
-    key = cv2.waitKey() & 0xFF
+    key = cv2.waitKey(1) & 0xFF
     # if the 'q' key is pressed, stop the loop
     if key == ord("q"):
         break
 
 # otherwise, release the camera
+if len(bounding_boxes) > 0:
+    write_bounding_boxes_to_csv(file_path, bounding_boxes)
+
 
 vs.release()
 # close all windows
 cv2.destroyAllWindows()
+print("os", os.getcwd())
+output_filename = "D:/Adithya/GRE/Applications/University of Pennsylvania/Coding Challenge/ball_tracking.mp4"
+out = cv2.VideoWriter(output_filename, cv2.VideoWriter_fourcc(*'mp4v'), fps, (frame_width, frame_height))
+for each_frame in frame_arr:
+    # Write the frame to the video
+    out.write(each_frame)
+out.release()
