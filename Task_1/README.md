@@ -1,5 +1,3 @@
-The provided code is a Python implementation of a problem-solving algorithm called "ThiefsAndCops." It appears to be a simulation of cops and thieves on a grid-based environment, where the goal is to find the closest safe grid for the thief while considering the field of view (FoV) of the cops.
-
 Here is the documentation for the code:
 
 ### ThiefsAndCops Class
