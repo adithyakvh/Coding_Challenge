@@ -2,84 +2,120 @@ import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib.ticker import AutoMinorLocator
 import copy
+from typing import Tuple, List
 import time
 
-def thief_and_cops(grid, orientations, fov):
-        tick = time.time()
-        indices = np.argwhere(grid > 0)
-        policeman_positions = indices[np.argsort(grid[indices[:, 0], indices[:, 1]])]
-        thief_position = np.where(grid<0)
-        
 
-        grid_height, grid_width = grid.shape
-        x = np.arange(grid_width)
-        y = np.arange(grid_height)
-        xx, yy = np.meshgrid(x, y)
+
+class ThiefsAndCops:
+    
+    def __init__(self, grid : np.ndarray, orientations : np.ndarray, fov : np.ndarray)->None:
+        """_summary_
+
+        Args:
+            grid (np.ndarray): _description_
+            orientations (np.ndarray): _description_
+            fov (np.ndarray): _description_
+        """
+        self.grid = grid
+        self.orientations = orientations
+        self.fov = fov
+        self._make_grid()
+    
+    def _make_grid(self):
+        """Initializes the gridX, gridY matrices for processing
+        """
+        self._start_timer() # initializes the timer
+
+        self.grid_width, self.grid_height = self.grid.shape
+        gridX, gridY = np.meshgrid(np.arange(self.grid_width), np.arange(self.grid_height))
 
         # Adding 4 channels for each corner of every grid
-        xx = np.repeat(xx[:, :, np.newaxis],  4, axis=2)
-        yy = np.repeat(yy[:, :, np.newaxis],  4, axis=2)
-
-        min_max_fov = np.array([orientations - fov/2, orientations+fov/2]).T
-        # range_fov
-
+        gridX = np.repeat(gridX[:, :, np.newaxis],  4, axis=2)
+        gridY = np.repeat(gridY[:, :, np.newaxis],  4, axis=2)
+        indices = np.argwhere(self.grid > 0)
+        self.policeman_positions = indices[np.argsort(self.grid[indices[:, 0], indices[:, 1]])]
         # Adding 4th axis for number of policemen
-        xx = np.repeat(xx[:, :, :, np.newaxis], len(policeman_positions), axis=3).astype(np.float32)
-        yy = np.repeat(yy[:, :, :, np.newaxis], len(policeman_positions), axis=3).astype(np.float32)
-
+        gridX = np.repeat(gridX[:, :, :, np.newaxis], len(self.policeman_positions), axis=3).astype(np.float32)
+        gridY = np.repeat(gridY[:, :, :, np.newaxis], len(self.policeman_positions), axis=3).astype(np.float32)
+        
         # 1st channel, top left point (x - 0.5, y)
         # 2nd channel, top right point (x + 0.5, y)
         # 3rd channel, bottom left point(x - 0.5, y + 0.5)
         # 4th channel, bottom right point(x + 0.5, y + 0.5)
         # Repeat for all cops, last dimension in array is for number of cops
+        
+        gridX[:, :, 0:3:2, :] = gridX[:, :, 0:3:2, :] - 0.5
+        gridY[:, :, 0:2, :] =   gridY[:, :, 0:2, :] - 0.5
+        gridX[:, :, 1:4:2, :] =   gridX[:, :, 1:4:2, :] + 0.5
+        gridY[:, :, 2:, :] =   gridY[:, :, 2:, :] + 0.5
 
-        xx[:, :, 0:3:2, :] = xx[:, :, 0:3:2, :] - 0.5
-        yy[:, :, 0:2, :] =   yy[:, :, 0:2, :] - 0.5
-        xx[:, :, 1:4:2, :] =   xx[:, :, 1:4:2, :] + 0.5
-        yy[:, :, 2:, :] =   yy[:, :, 2:, :] + 0.5
+        self.gridX = gridX
+        self.gridY = gridY
+    
+    def findClosestSafeGrid(self)->Tuple[List, List]:
+        """_summary_
 
-        policeman_row = np.tile(policeman_positions[:, 0].reshape(1, 1, len(policeman_positions)), 
-                        (grid_height, grid_width, 1))[:, :, np.newaxis, :]
-        policeman_col = np.tile(policeman_positions[:, 1].reshape(1, 1, len(policeman_positions)), 
-                        (grid_height, grid_width, 1))[:, :, np.newaxis, :]
+        Returns:
+            _type_: _description_
+        """
+        policeman_row = np.tile(self.policeman_positions[:, 0].reshape(1, 1, len(self.policeman_positions)), 
+                        (self.grid_height, self.grid_width, 1))[:, :, np.newaxis, :]
+        policeman_col = np.tile(self.policeman_positions[:, 1].reshape(1, 1, len(self.policeman_positions)), 
+                        (self.grid_height, self.grid_width, 1))[:, :, np.newaxis, :]
 
-        angles = np.degrees(np.arctan2(yy - policeman_row, xx-policeman_col))
+        angles = np.degrees(np.arctan2(self.gridY - policeman_row, self.gridX-policeman_col))
         angles = (360 - angles) % 360
 
-        fov_lower = np.tile(min_max_fov[:, 0].reshape(1, 1, len(policeman_positions)), 
+        min_max_fov = np.array([self.orientations - self.fov/2, self.orientations + self.fov/2]).T
+
+        fov_lower = np.tile(min_max_fov[:, 0].reshape(1, 1, len(self.policeman_positions)), 
                            (angles.shape[0], angles.shape[1], 1))[:, :, np.newaxis, :]
-        fov_upper = np.tile(min_max_fov[:, 1].reshape(1, 1, len(policeman_positions)), 
+        fov_upper = np.tile(min_max_fov[:, 1].reshape(1, 1, len(self.policeman_positions)), 
                            (angles.shape[0], angles.shape[1], 1))[:, :, np.newaxis, :]
 
-        # Finding grids visible to any cop
-        visible_grids = np.where((fov_lower < angles) & (angles < fov_upper))
+        self.visible_grids = np.where((fov_lower < angles) & (angles < fov_upper))
+
+        self.thief_position = np.where(self.grid<0)
 
         # Finding cops who can see the thief
-        cop_ids = visible_grids[3][np.where((visible_grids[0] == thief_position[0]) & 
-                                            (visible_grids[1] == thief_position[1]))] + 1
+        cop_ids = self.visible_grids[3][np.where((self.visible_grids[0] == self.thief_position[0]) & 
+                                            (self.visible_grids[1] == self.thief_position[1]))] + 1
         cop_ids = list(set(cop_ids))
         
         # Creating a copy of original grid to populate grid values whether they are visible or safe
-        new_grid = copy.deepcopy(grid)
-        new_grid[visible_grids[0], visible_grids[1]] = 10
-        new_grid[policeman_positions[:, 0], policeman_positions[:, 1]] = \
-                                            grid[policeman_positions[:, 0], policeman_positions[:, 1]]
+        new_grid = self.grid
+        new_grid[self.visible_grids[0], self.visible_grids[1]] = 10
+        new_grid[self.policeman_positions[:, 0], self.policeman_positions[:, 1]] = \
+                                            self.grid[self.policeman_positions[:, 0], self.policeman_positions[:, 1]]
         
         # Finding safe grids and closest safe grid using Manhattan Distance
-        safe_grids = np.where(new_grid == 0)
-        distances = np.argsort(abs(safe_grids[1] - thief_position[1]) + abs(safe_grids[0] - thief_position[0]))
-        closest_safe_grid = [safe_grids[0][distances[0]], safe_grids[1][distances[0]]]
+        self.safe_grids = np.where(new_grid == 0)
+        distances = np.argsort(abs(self.safe_grids[1] - self.thief_position[1]) + abs(self.safe_grids[0] - self.thief_position[0]))
+        self.closest_safe_grid = [self.safe_grids[0][distances[0]], self.safe_grids[1][distances[0]]]
         
-        new_grid[closest_safe_grid[0], closest_safe_grid[1]] = -10
+        new_grid[self.closest_safe_grid[0], self.closest_safe_grid[1]] = -10
+        
+        self.new_grid = new_grid
 
-        tock = time.time()
-        print(tick)
-        print(tock)
-        #######################################################################################################
-        #########################################For plotting##############################################
-        #######################################################################################################
-        # For plotting   
-        plt.text(thief_position[1], thief_position[0], 'T', color='red')
+        self._stop_timer()
+        return cop_ids, self.closest_safe_grid
+    
+    def visualize(self)->None:
+        """For visualization of the Grid
+        """
+        plt.text(self.thief_position[1], self.thief_position[0], 'T', color='red')
+
+        # Enable minor grid lines
+        color_grid = np.zeros((self.new_grid.shape[0], self.new_grid.shape[1], 3))
+        color_grid[self.safe_grids] = (255,255,255)
+        color_grid[self.policeman_positions[:, 0], self.policeman_positions[:, 1]] = (255,0,0)
+        color_grid[self.closest_safe_grid[0], self.closest_safe_grid[1]] = (0,255,0)
+        color_grid[self.thief_position[0], self.thief_position[1]] = (0, 0, 255)
+        color_grid[self.visible_grids[0], self.visible_grids[1]] = (155, 155, 0)
+        color_grid[self.policeman_positions[:, 0], self.policeman_positions[:, 1]] = (255,0,0)
+
+        plt.text(self.thief_position[1], self.thief_position[0], 'T', color='red')
 
         # Enable minor grid lines
         minor_locator = AutoMinorLocator(2)
@@ -88,59 +124,70 @@ def thief_and_cops(grid, orientations, fov):
 
         # Customize the minor grid lines
         plt.grid(which='minor')
+        # plt.title("Yellow grids are visible grids, White grids are thief, green grid is closest safe grid, blue grids are safe grid")
 
-        plt.xticks(np.arange(0,grid.shape[1]))
-        plt.yticks(np.arange(0,grid.shape[0]))
+        plt.xticks(np.arange(0,self.grid.shape[1]))
+        plt.yticks(np.arange(0,self.grid.shape[0]))
+        plt.imshow(color_grid)
 
-        plt.imshow(new_grid, cmap='viridis')
-        plt.show()
-        # End of plotting
-        #######################################################################################################
-        ########################################End of plotting#################################################
-        #######################################################################################################
+        plt.show() 
+    
+    def _start_timer(self):
+        """Starts timer
+        """
+        self.tick = time.time()
 
-        return cop_ids, closest_safe_grid
-
+    def _stop_timer(self):
+        """Stops Timer
+        """
+        self.tock = time.time() - self.tick
+    
 #######################################################################################################
 def main():
     
-    grid = np.array([[0  , 0, 0, 0, 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
-                     [-20, 0, 0, 0, 2,0,0,0,0,0,3,0,0,0,0,0,0,0,0,0,0,0,0],
-                     [0  , 0, 0, 0, 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
-                     [0  , 0, 1, 0, 0,0,0,0,0,4,0,0,0,0,0,0,0,0,0,0,0,0,0],
-                     [0  , 0, 0, 0, 0,0,0,8,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
-                     [0  , 7, 0, 0, 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
-                     [0  , 0, 0, 0, 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
-                     [0  , 0, 0, 5, 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
-                     [0  , 0, 0, 0, 0,0,0,0,0,6,0,0,0,0,0,0,0,0,0,0,0,0,0],
-                     [0  , 0, 0, 0, 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
-                     [0  , 0, 0, 0, 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
-                     [0  , 0, 0, 0, 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
-                     [0  , 0, 0, 0, 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
-                     [0  , 0, 0, 0, 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
-                     [0  , 0, 0, 0, 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
-                     [0  , 0, 0, 0, 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
-                     [0  , 0, 0, 0, 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
-                     [0  , 0, 0, 0, 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
-                     [0  , 0, 0, 0, 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
-                     [0  , 0, 0, 0, 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
-                     [0  , 0, 0, 0, 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
-                     [0  , 0, 0, 0, 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
-                     [0  , 0, 0, 0, 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0]])
+    # grid = np.array([[0  , 0, 0, 0, 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
+    #                  [-20, 0, 0, 0, 2,0,0,0,0,0,3,0,0,0,0,0,0,0,0,0,0,0,0],
+    #                  [0  , 0, 0, 0, 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
+    #                  [0  , 0, 1, 0, 0,0,0,0,0,4,0,0,0,0,0,0,0,0,0,0,0,0,0],
+    #                  [0  , 0, 0, 0, 0,0,0,8,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
+    #                  [0  , 7, 0, 0, 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
+    #                  [0  , 0, 0, 0, 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
+    #                  [0  , 0, 0, 5, 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
+    #                  [0  , 0, 0, 0, 0,0,0,0,0,6,0,0,0,0,0,0,0,0,0,0,0,0,0],
+    #                  [0  , 0, 0, 0, 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
+    #                  [0  , 0, 0, 0, 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
+    #                  [0  , 0, 0, 0, 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
+    #                  [0  , 0, 0, 0, 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
+    #                  [0  , 0, 0, 0, 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
+    #                  [0  , 0, 0, 0, 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
+    #                  [0  , 0, 0, 0, 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
+    #                  [0  , 0, 0, 0, 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
+    #                  [0  , 0, 0, 0, 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
+    #                  [0  , 0, 0, 0, 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
+    #                  [0  , 0, 0, 0, 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
+    #                  [0  , 0, 0, 0, 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
+    #                  [0  , 0, 0, 0, 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
+    #                  [0  , 0, 0, 0, 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0]])
 
-#     bad_grid = [[0, 0, 0, 0, 0],
-#                 ['T', 0, 0, 0, 2],
-#                 [0, 0, 0, 0, 0],
-#                 [0, 0, 1, 0, 0],
-#                 [0, 0, 0, 0, 0]]
-#     converted = np.array([[-20 if elem == 'T' else elem for elem in arr] for arr in bad_grid])
-#     assert(np.all(converted == grid))
+    bad_grid = [[0, 0, 0, 0, 0],
+                ['T', 0, 0, 0, 2],
+                [0, 0, 0, 0, 0],
+                [0, 0, 1, 0, 0],
+                [0, 0, 0, 0, 0]]
+    grid = np.array([[-20 if elem == 'T' else elem for elem in arr] for arr in bad_grid])
+    # assert(np.all(converted == grid))
 
-    orientations = np.array([180, 150, 180, 180, 180, 180, 180, 180 ])
-    FoV = np.array([60, 60, 60, 60, 60, 60, 60, 60])
-    cops, safe_grid = thief_and_cops(grid, orientations, FoV)
+    orientations = np.array([180, 150])
+    FoV = np.array([60, 60])
+    
+
+    solver = ThiefsAndCops(grid, orientations, FoV)
+    cops, safe_grid = solver.findClosestSafeGrid()
+    solver.visualize()
+    print("Time Taken : ", solver.tock)
     print("Cops watching", cops)
     print("Safe grid", safe_grid)
+    
 
     # # Display the grid using imshow
     # plt.imshow(grid, cmap='viridis')
