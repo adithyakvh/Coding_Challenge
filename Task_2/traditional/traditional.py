@@ -6,6 +6,7 @@ import cv2
 import imutils
 import matplotlib.pyplot as plt
 import csv
+import os
 
 def write_bounding_boxes_to_csv(file_path, bounding_boxes):
     with open(file_path, mode='w', newline='') as file:
@@ -185,10 +186,11 @@ def ball_tracking_traditional(lower_threshold, upper_threshold, src_path, csv_ou
     out.release()
 
 def main():
-
-    video_src = "D:\\Adithya\\GRE\\Applications\\University of Pennsylvania\\Coding Challenge\\ball_tracking_video.mp4"
-    csv_output = r"D:\\Adithya\\GRE\\Applications\\University of Pennsylvania\\Coding Challenge\\Box_coordinates.csv"
-    video_output = "D:\\Adithya\\GRE\\Applications\\University of Pennsylvania\\Coding Challenge\\ball_tracking.mp4"
+    if not os.path.exists("./results"):
+        os.mkdir("./results")
+    video_src = "ball_tracking_video.mp4"
+    csv_output = r"./results/bbox_coordinates_traditional.csv"
+    video_output = "./results/ball_tracking_traditional.mp4"
     lower_threshold = np.array([15, 0, 200])
     upper_threshold = np.array([32, 40, 255])
 
