@@ -11,6 +11,10 @@ python Task1.py
 ### Result:
 For Task 1, the results are printed on the terminal and grids are visualised with required results.
 
+![Results](Task_1/Figure_1.png)
+
+
+
 ## Task 2:
 ### Traditional method:
 
