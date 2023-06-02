@@ -18,7 +18,7 @@ For Task 1, the results are printed on the terminal and grids are visualised wit
 
 ## Task 2:
 ### Traditional method:
-
+Install python==3.8.0
 ### Instructions to run:
 ```
 cd Task_2/traditional

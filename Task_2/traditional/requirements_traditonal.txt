@@ -1,7 +1,4 @@
-opencv-python==4.7.0
 numpy==1.23.4
 imutils==0.5.4
-collections
-argparse
-matplotlib
-csv
+matplotlib==3.7.1
+opencv-python==4.7.0.68
