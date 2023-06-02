@@ -1,6 +1,7 @@
 # Coding_Challenge
 
 ## Task 1:
+Install python==3.8.0
 ### Instructions to run:
 ```
 cd Task_1
