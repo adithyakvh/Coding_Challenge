@@ -5,6 +5,7 @@
 gitpython>=3.1.30
 matplotlib>=3.3
 numpy>=1.18.5
+imutils==0.5.4
 opencv-python>=4.1.1
 Pillow>=7.1.2
 psutil  # system resources
@@ -48,6 +49,5 @@ setuptools>=65.5.1 # Snyk vulnerability fix
 # albumentations>=1.0.3
 # pycocotools>=2.0.6  # COCO mAP
 
-imutils==0.5.4
-collections
-argparse
+
+
