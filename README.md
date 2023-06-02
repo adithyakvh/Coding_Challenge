@@ -31,8 +31,8 @@ For task 2 traditional, the results are stored in Coding_Challenge/Task_2/tradit
 Results include Video and .csv file in required format
 
 ### DL Based Method:
-Instructions to run:
 Install python==3.7.2
+### Instructions to run:
 ```
 cd Task_2/dl_based/yolov5
 pip install -r requirements.txt
